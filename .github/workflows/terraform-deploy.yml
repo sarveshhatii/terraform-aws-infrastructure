@@ -18,6 +18,7 @@ jobs:
   terraform-deploy:
     name: Apply Terraform Infrastructure
     runs-on: ubuntu-latest
+    environment: terraform-production
 
     defaults:
       run:
@@ -48,4 +49,4 @@ jobs:
         run: terraform plan -input=false -lock-timeout=5m -out=tfplan
 
       - name: Apply Terraform plan
-        run: terraform apply -auto-approve -lock-timeout=5m tfplan
+        run: terraform apply -input=false -lock-timeout=5m -auto-approve tfplan
