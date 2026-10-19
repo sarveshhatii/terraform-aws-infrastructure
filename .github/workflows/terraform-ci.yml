@@ -1,0 +1,77 @@
+
+name: Terraform CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform-ci.yml"
+      - ".github/workflows/terraform-deploy.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-check:
+    name: Format, Validate and Plan
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.9"
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+
+      - name: Debug GitHub OIDC context
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_REF: ${{ github.ref }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_HEAD_REF: ${{ github.head_ref }}
+        run: |
+          echo "Event: $GH_EVENT_NAME"
+          echo "Repository: $GH_REPOSITORY"
+          echo "Ref: $GH_REF"
+          echo "Head ref: $GH_HEAD_REF"
+
+      - name: Debug OIDC token claims
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const payload = JSON.parse(
+              Buffer.from(token.split('.')[1], 'base64url').toString()
+            );
+            core.info(`Issuer: ${payload.iss}`);
+            core.info(`Audience: ${payload.aud}`);
+            core.info(`Subject: ${payload.sub}`);
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::020671572525:role/GitHubActionsTerraformPlanRole
+          aws-region: ap-south-1
+
+      - name: Initialize Terraform
+        run: terraform init -input=false
+
+      - name: Validate Terraform configuration
+        run: terraform validate
+
+      - name: Generate Terraform plan
+        run: terraform plan -input=false -lock-timeout=5m
