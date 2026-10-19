@@ -1,0 +1,51 @@
+
+name: Terraform Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-deploy:
+    name: Apply Terraform Infrastructure
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.9"
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::020671572525:role/GitHubActionsTerraformInfraRole
+          aws-region: ap-south-1
+
+      - name: Initialize Terraform
+        run: terraform init -input=false
+
+      - name: Validate Terraform configuration
+        run: terraform validate
+
+      - name: Review Terraform plan
+        run: terraform plan -input=false -lock-timeout=5m -out=tfplan
+
+      - name: Apply Terraform plan
+        run: terraform apply -auto-approve -lock-timeout=5m tfplan
