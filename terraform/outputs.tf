@@ -32,3 +32,4 @@ output "ec2_iam_role_name" {
   description = "IAM role attached to EC2"
   value       = aws_iam_role.ec2.name
 }
+# Demo: Testing the Terraform CI/CD workflow.
